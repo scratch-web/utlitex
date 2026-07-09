@@ -1,5 +1,7 @@
 import ctypes
 import os
+import io
+import struct
 import time
 import psutil
 import win32gui
@@ -50,12 +52,43 @@ png_file = os.path.join(folder, "cursor.png")
 def convert_png_to_cursor():
     image = Image.open(png_file).convert("RGBA")
 
-    # Windows cursors are usually 32x32 or 64x64
-    image.save(
-        cursor_file,
-        format="CUR",
-        sizes=[(image.width, image.height)]
-    )
+    # Windows only supports up to 256x256 for PNG-compressed cursors
+    if image.width > 256 or image.height > 256:
+        image.thumbnail((256, 256), Image.LANCZOS)
+
+    png_bytes = io.BytesIO()
+    image.save(png_bytes, format="PNG")
+    png_data = png_bytes.getvalue()
+
+    width = image.width if image.width < 256 else 0
+    height = image.height if image.height < 256 else 0
+
+    hotspot_x = 0
+    hotspot_y = 0
+
+    with open(cursor_file, "wb") as f:
+        # CUR header
+        f.write(struct.pack("<HHH",
+            0,      # Reserved
+            2,      # Type (2 = cursor)
+            1       # Number of images
+        ))
+
+        # Directory entry
+        f.write(struct.pack(
+            "<BBBBHHII",
+            width,
+            height,
+            0,                  # palette
+            0,                  # reserved
+            hotspot_x,
+            hotspot_y,
+            len(png_data),
+            6 + 16              # offset to image data
+        ))
+
+        # PNG image
+        f.write(png_data)
 
     print("converted cursor.png into cursor.cur")
 
