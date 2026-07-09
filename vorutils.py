@@ -18,14 +18,14 @@ vortex = os.path.join(here, "bin", "vortex")
 cursor = os.path.join(here, "bin", "cursor")
 
 
-jsonsyntax = [
+jsonpatterns = [
     ("kw", r'"(?:\\.|[^"\\])*"(?=\s*:)'),
     ("str", r'"(?:\\.|[^"\\])*"'),
     ("bool", r'\b(?:true|false|null)\b'),
     ("num", r'-?\b\d+\.?\d*(?:[eE][+-]?\d+)?\b'),
 ]
 
-luasyntax = [
+luapatterns = [
     ("com", r'--.*'),
     ("str", r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\''),
     ("kw", r'\b(?:local|function|end|if|then|else|elseif|return|for|do|in|while|repeat|until|and|or|not|break)\b'),
@@ -34,17 +34,17 @@ luasyntax = [
 ]
 
 
-BG = "#1e1e1e"
-PANEL = "#252526"
-PANEL2 = "#2d2d30"
-FG = "#e0e0e0"
-FGDIM = "#9a9a9a"
-ACCENT = "#453a5c"
-ACCENTHOVER = "#544874"
-ACCENTLIGHT = "#5e4f7d"
-ACCENTDARK = "#332a45"
-BORDER = "#3c3c3c"
-RED = "#9e67eb"
+bg = "#1e1e1e"
+panel = "#252526"
+panel2 = "#2d2d30"
+fg = "#e0e0e0"
+fgdim = "#9a9a9a"
+accent = "#453a5c"
+accenthover = "#544874"
+accentlight = "#5e4f7d"
+accentdark = "#332a45"
+border = "#3c3c3c"
+red = "#9e67eb"
 
 
 def lerp(a, b, t):
@@ -69,13 +69,13 @@ def gradient(c1, c2, steps):
     return colors
 
 
-class GradientButton(tk.Canvas):
-    def __init__(self, parent, text, command, width=170, height=32, top=ACCENTLIGHT, bottom=ACCENTDARK):
+class gradientbutton(tk.Canvas):
+    def __init__(self, parent, text, command, width=170, height=32, top=accentlight, bottom=accentdark):
         super().__init__(
             parent,
             width=width,
             height=height,
-            bg=BG,
+            bg=bg,
             highlightthickness=0
         )
 
@@ -91,7 +91,7 @@ class GradientButton(tk.Canvas):
             width / 2,
             height / 2,
             text=text,
-            fill=FG,
+            fill=fg,
             font=("Segoe UI", 10)
         )
 
@@ -116,7 +116,7 @@ class GradientButton(tk.Canvas):
 
 
     def enter(self, event):
-        self.draw(ACCENTHOVER, ACCENTLIGHT)
+        self.draw(accenthover, accentlight)
 
 
     def leave(self, event):
@@ -142,10 +142,11 @@ class app(TkinterDnD.Tk):
 
         self.overrideredirect(True)
         self.geometry("650x530+300+150")
-        self.configure(bg=BG)
+        self.configure(bg=bg)
         self.title("Utlitex")
 
         self.term = tk.BooleanVar()
+        self.topmost = tk.BooleanVar(value=True)
         self.cursorprocess = None
         self.processes = []
 
@@ -155,6 +156,8 @@ class app(TkinterDnD.Tk):
         self.style()
         self.titlebar()
         self.make()
+
+        self.attributes("-topmost", self.topmost.get())
 
         ctypes.windll.kernel32.FreeConsole()
 
@@ -168,22 +171,22 @@ class app(TkinterDnD.Tk):
 
         s.configure(
             "TNotebook",
-            background=BG,
+            background=bg,
             borderwidth=0
         )
 
         s.configure(
             "TNotebook.Tab",
-            background=PANEL,
-            foreground=FGDIM,
+            background=panel,
+            foreground=fgdim,
             padding=(14, 6),
             borderwidth=0
         )
 
         s.map(
             "TNotebook.Tab",
-            background=[("selected", ACCENT)],
-            foreground=[("selected", FG)]
+            background=[("selected", accent)],
+            foreground=[("selected", fg)]
         )
 
         s.layout(
@@ -209,34 +212,34 @@ class app(TkinterDnD.Tk):
 
         s.configure(
             "TFrame",
-            background=BG
+            background=bg
         )
 
         s.configure(
             "TButton",
-            background=ACCENT,
-            foreground=FG,
+            background=accent,
+            foreground=fg,
             borderwidth=0,
-            focuscolor=ACCENT,
+            focuscolor=accent,
             padding=(10, 6)
         )
 
         s.map(
             "TButton",
-            background=[("active", ACCENTHOVER)]
+            background=[("active", accenthover)]
         )
 
         s.configure(
             "TCheckbutton",
-            background=BG,
-            foreground=FG,
-            focuscolor=BG
+            background=bg,
+            foreground=fg,
+            focuscolor=bg
         )
 
         s.map(
             "TCheckbutton",
-            background=[("active", BG)],
-            foreground=[("active", FG)]
+            background=[("active", bg)],
+            foreground=[("active", fg)]
         )
 
 
@@ -246,7 +249,7 @@ class app(TkinterDnD.Tk):
         bar = tk.Canvas(
             self,
             height=34,
-            bg=PANEL,
+            bg=panel,
             highlightthickness=0
         )
 
@@ -261,7 +264,7 @@ class app(TkinterDnD.Tk):
         title = bar.create_text(
             14, 17,
             text="Utlitex",
-            fill=FG,
+            fill=fg,
             anchor="w",
             font=("Segoe UI", 11, "bold")
         )
@@ -269,8 +272,8 @@ class app(TkinterDnD.Tk):
         close = tk.Label(
             self,
             text="✕",
-            bg=PANEL,
-            fg=FGDIM,
+            bg=panel,
+            fg=fgdim,
             font=("Segoe UI", 11),
             width=4
         )
@@ -290,19 +293,19 @@ class app(TkinterDnD.Tk):
 
         close.bind(
             "<Enter>",
-            lambda e: close.config(bg=RED, fg="#ffffff")
+            lambda e: close.config(bg=red, fg="#ffffff")
         )
 
         close.bind(
             "<Leave>",
-            lambda e: close.config(bg=PANEL, fg=FGDIM)
+            lambda e: close.config(bg=panel, fg=fgdim)
         )
 
         minb = tk.Label(
             self,
             text="—",
-            bg=PANEL,
-            fg=FGDIM,
+            bg=panel,
+            fg=fgdim,
             font=("Segoe UI", 11),
             width=4
         )
@@ -322,12 +325,12 @@ class app(TkinterDnD.Tk):
 
         minb.bind(
             "<Enter>",
-            lambda e: minb.config(bg=ACCENTHOVER, fg=FG)
+            lambda e: minb.config(bg=accenthover, fg=fg)
         )
 
         minb.bind(
             "<Leave>",
-            lambda e: minb.config(bg=PANEL, fg=FGDIM)
+            lambda e: minb.config(bg=panel, fg=fgdim)
         )
 
         bar.bind("<ButtonPress-1>", self.startmove)
@@ -342,7 +345,7 @@ class app(TkinterDnD.Tk):
         if w < 2:
             w = 650
 
-        colors = gradient(ACCENTDARK, PANEL, w)
+        colors = gradient(accentdark, panel, w)
 
         for i, c in enumerate(colors):
             bar.create_line(
@@ -356,13 +359,13 @@ class app(TkinterDnD.Tk):
 
 
     def startmove(self, event):
-        self._dx = event.x
-        self._dy = event.y
+        self.movex = event.x
+        self.movey = event.y
 
 
     def domove(self, event):
-        x = self.winfo_pointerx() - self._dx
-        y = self.winfo_pointery() - self._dy
+        x = self.winfo_pointerx() - self.movex
+        y = self.winfo_pointery() - self.movey
         self.geometry(f"+{x}+{y}")
 
 
@@ -372,6 +375,10 @@ class app(TkinterDnD.Tk):
             ctypes.windll.kernel32.AllocConsole()
         else:
             ctypes.windll.kernel32.FreeConsole()
+
+
+    def toggletopmost(self):
+        self.attributes("-topmost", self.topmost.get())
 
 
     def minimize(self):
@@ -436,16 +443,16 @@ class app(TkinterDnD.Tk):
         tk.Label(
             home,
             text="Utlitex",
-            bg=BG,
-            fg=FG,
+            bg=bg,
+            fg=fg,
             font=("Segoe UI", 22, "bold")
         ).pack(pady=20)
 
         tk.Label(
             home,
             text=ver,
-            bg=BG,
-            fg=FGDIM,
+            bg=bg,
+            fg=fgdim,
             font=("Segoe UI", 11)
         ).pack()
 
@@ -453,23 +460,23 @@ class app(TkinterDnD.Tk):
         tk.Label(
             home,
             text="Credits",
-            bg=BG,
-            fg=FG,
+            bg=bg,
+            fg=fg,
             font=("Segoe UI", 12, "bold")
         ).pack(pady=(30, 0))
 
         tk.Label(
             home,
             text="Default Cursor by @friendlysmiles on Discord",
-            bg=BG,
-            fg=FGDIM
+            bg=bg,
+            fg=fgdim
         ).pack()
 
         tk.Label(
             home,
             text="coding by @nieotica on discord",
-            bg=BG,
-            fg=FGDIM
+            bg=bg,
+            fg=fgdim
         ).pack()
 
 
@@ -480,7 +487,7 @@ class app(TkinterDnD.Tk):
             self.getjson
         )
 
-        GradientButton(
+        gradientbutton(
             luautab,
             "Execute",
             self.runluau
@@ -494,8 +501,8 @@ class app(TkinterDnD.Tk):
         tk.Label(
             vortextab,
             text="Experimental, do not use for final work.",
-            bg=BG,
-            fg=FGDIM,
+            bg=bg,
+            fg=fgdim,
             font=("Segoe UI", 10)
         ).pack(pady=5)
 
@@ -506,7 +513,7 @@ class app(TkinterDnD.Tk):
             self.getvortex
         )
 
-        GradientButton(
+        gradientbutton(
             vortextab,
             "Execute",
             self.runvortex
@@ -524,7 +531,7 @@ class app(TkinterDnD.Tk):
         )
 
 
-        self.cursorbutton = GradientButton(
+        self.cursorbutton = gradientbutton(
             cursortab,
             "Execute",
             self.runcursor
@@ -533,7 +540,7 @@ class app(TkinterDnD.Tk):
         self.cursorbutton.pack(pady=5)
 
 
-        GradientButton(
+        gradientbutton(
             cursortab,
             "Reset Cursor",
             self.resetcursor
@@ -548,18 +555,25 @@ class app(TkinterDnD.Tk):
             command=self.toggleterminal
         ).pack(pady=20)
 
+        ttk.Checkbutton(
+            settingstab,
+            text="Always on Top",
+            variable=self.topmost,
+            command=self.toggletopmost
+        ).pack()
+
 
 
     def makeout(self, tab, lang="lua"):
         out = tk.Text(
             tab,
-            bg=PANEL2,
-            fg=FG,
-            insertbackground=FG,
+            bg=panel2,
+            fg=fg,
+            insertbackground=fg,
             relief="flat",
             highlightthickness=1,
-            highlightbackground=BORDER,
-            highlightcolor=BORDER,
+            highlightbackground=border,
+            highlightcolor=border,
             font=("Cascadia Code", 10),
             width=70,
             height=8
@@ -572,11 +586,11 @@ class app(TkinterDnD.Tk):
 
         out.lang = lang
 
-        out.tag_configure("kw", foreground=ACCENTLIGHT)
+        out.tag_configure("kw", foreground=accentlight)
         out.tag_configure("str", foreground="#ce9178")
         out.tag_configure("num", foreground="#b5cea8")
-        out.tag_configure("bool", foreground=ACCENTLIGHT)
-        out.tag_configure("com", foreground=FGDIM)
+        out.tag_configure("bool", foreground=accentlight)
+        out.tag_configure("com", foreground=fgdim)
 
         return out
 
@@ -587,11 +601,11 @@ class app(TkinterDnD.Tk):
         box = tk.Label(
             tab,
             text=text,
-            bg=PANEL2,
-            fg=FGDIM,
+            bg=panel2,
+            fg=fgdim,
             relief="solid",
             borderwidth=1,
-            highlightbackground=BORDER,
+            highlightbackground=border,
             width=30,
             height=3
         )
@@ -727,7 +741,7 @@ class app(TkinterDnD.Tk):
         content = box.get("1.0", "end-1c")
         mask = [False] * len(content)
 
-        patterns = jsonsyntax if box.lang == "json" else luasyntax
+        patterns = jsonpatterns if box.lang == "json" else luapatterns
 
         for tag, pattern in patterns:
             for m in re.finditer(pattern, content, re.MULTILINE):
