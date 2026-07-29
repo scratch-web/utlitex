@@ -7,7 +7,7 @@ import psutil
 import win32gui
 import win32process
 from ctypes import wintypes
-from PIL import Image
+from PIL import Image, ImageSequence
 
 user32 = ctypes.windll.user32
 
@@ -45,61 +45,117 @@ class CursorInfo(ctypes.Structure):
 
 folder = os.path.dirname(os.path.abspath(__file__))
 
-cursor_file = os.path.join(folder, "cursor.cur")
+cur_file = os.path.join(folder, "cursor.cur")
+ani_file = os.path.join(folder, "cursor.ani")
 png_file = os.path.join(folder, "cursor.png")
+gif_file = os.path.join(folder, "cursor.gif")
 
 
-def convert_png_to_cursor():
-    image = Image.open(png_file).convert("RGBA")
+def image_to_cur_bytes(image):
+    image = image.convert("RGBA")
 
-    # Windows only supports up to 256x256 for PNG-compressed cursors
-    if image.width > 256 or image.height > 256:
-        image.thumbnail((256, 256), Image.LANCZOS)
+    if image.width > 64 or image.height > 64:
+        image.thumbnail((64, 64), Image.LANCZOS)
 
     png_bytes = io.BytesIO()
     image.save(png_bytes, format="PNG")
     png_data = png_bytes.getvalue()
 
-    width = image.width if image.width < 256 else 0
-    height = image.height if image.height < 256 else 0
+    width = image.width
+    height = image.height
 
-    hotspot_x = 0
-    hotspot_y = 0
+    header = struct.pack("<HHH", 0, 2, 1)
+    direntry = struct.pack(
+        "<BBBBHHII",
+        width, height,
+        0, 0,
+        0, 0,
+        len(png_data),
+        6 + 16
+    )
 
-    with open(cursor_file, "wb") as f:
-        # CUR header
-        f.write(struct.pack("<HHH",
-            0,      # Reserved
-            2,      # Type (2 = cursor)
-            1       # Number of images
-        ))
+    return header + direntry + png_data
 
-        # Directory entry
-        f.write(struct.pack(
-            "<BBBBHHII",
-            width,
-            height,
-            0,                  # palette
-            0,                  # reserved
-            hotspot_x,
-            hotspot_y,
-            len(png_data),
-            6 + 16              # offset to image data
-        ))
 
-        # PNG image
-        f.write(png_data)
+def convert_png_to_cursor():
+    with open(cur_file, "wb") as f:
+        f.write(image_to_cur_bytes(Image.open(png_file)))
 
     print("converted cursor.png into cursor.cur")
 
 
-if not os.path.exists(cursor_file):
+def pack_chunk(fourcc, data):
+    size = len(data)
+    out = fourcc.encode("ascii") + struct.pack("<I", size) + data
+
+    if size % 2:
+        out += b"\x00"
+
+    return out
+
+
+def build_ani(frames):
+    # frames is a list of (PIL.Image, duration_ms)
+    cur_frames = [image_to_cur_bytes(image) for image, _ in frames]
+    jiffies = [max(1, round(duration_ms * 60 / 1000)) for _, duration_ms in frames]
+
+    anih = struct.pack(
+        "<9I",
+        36,               # cbSizeof
+        len(cur_frames),  # cFrames
+        len(cur_frames),  # cSteps
+        0, 0,             # cx, cy
+        0,                # cBitCount
+        0,                # cPlanes
+        jiffies[0],       # default JifRate
+        1                 # flags, AF_ICON
+    )
+
+    rate = struct.pack("<%dI" % len(jiffies), *jiffies)
+
+    fram_inner = b"".join(pack_chunk("icon", data) for data in cur_frames)
+    fram_list = b"LIST" + struct.pack("<I", len(fram_inner) + 4) + b"fram" + fram_inner
+
+    body = pack_chunk("anih", anih) + pack_chunk("rate", rate) + fram_list
+    riff = b"RIFF" + struct.pack("<I", len(body) + 4) + b"ACON" + body
+
+    with open(ani_file, "wb") as f:
+        f.write(riff)
+
+
+def gif_to_frames():
+    frames = []
+    image = Image.open(gif_file)
+
+    for frame in ImageSequence.Iterator(image):
+        duration_ms = frame.info.get("duration", 100)
+        frames.append((frame.convert("RGBA").copy(), duration_ms))
+
+    return frames
+
+
+def resolve_cursor_source():
+    if os.path.exists(ani_file):
+        return ani_file, True
+
+    if os.path.exists(gif_file):
+        build_ani(gif_to_frames())
+        print("converted cursor.gif into cursor.ani")
+        return ani_file, True
+
+    if os.path.exists(cur_file):
+        return cur_file, False
+
     if os.path.exists(png_file):
         convert_png_to_cursor()
-    else:
-        raise FileNotFoundError(
-            "could not find cursor.cur or cursor.png"
-        )
+        return cur_file, False
+
+    raise FileNotFoundError(
+        "could not find cursor.ani, cursor.gif, cursor.cur or cursor.png"
+    )
+
+
+cursor_file, is_animated = resolve_cursor_source()
 
 
 def load_cursor():
@@ -114,6 +170,9 @@ def load_cursor():
 
     if not loaded_cursor:
         return None
+
+    if is_animated:
+        return loaded_cursor
 
     cursor_info = CursorInfo()
 
@@ -190,5 +249,7 @@ try:
         time.sleep(0.1)
 
 except KeyboardInterrupt:
-    reset_cursor()
     print("exiting")
+
+finally:
+    reset_cursor()
