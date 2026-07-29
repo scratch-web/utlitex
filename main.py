@@ -526,7 +526,7 @@ class app(TkinterDnD.Tk):
 
         self.makebox(
             cursortab,
-            "Drop cursor.png here",
+            "Drop cursor file here",
             self.getcursor
         )
 
@@ -673,27 +673,47 @@ class app(TkinterDnD.Tk):
 
         if not file:
             file = filedialog.askopenfilename(
-                filetypes=[("PNG", "*.png")]
+                filetypes=[("Cursor files", "*.png *.gif")]
             )
 
         if file:
             file = file.replace("{", "").replace("}", "")
 
+            ext = os.path.splitext(file)[1].lower()
+            dest = "cursor.gif" if ext == ".gif" else "cursor.png"
+
             shutil.copy(
                 file,
-                os.path.join(
-                    cursor,
-                    "cursor.png"
-                )
+                os.path.join(cursor, dest)
             )
 
-            cur = os.path.join(
+            stale = ["cursor.cur", "cursor.ani"]
+            stale.append("cursor.png" if dest == "cursor.gif" else "cursor.gif")
+
+            for name in stale:
+                path = os.path.join(cursor, name)
+                if os.path.exists(path):
+                    os.remove(path)
+
+
+
+    def resetcursor(self):
+
+        shutil.copy(
+            os.path.join(
                 cursor,
-                "cursor.cur"
+                "defaultcursor.png"
+            ),
+            os.path.join(
+                cursor,
+                "cursor.png"
             )
+        )
 
-            if os.path.exists(cur):
-                os.remove(cur)
+        for name in ["cursor.cur", "cursor.ani", "cursor.gif"]:
+            path = os.path.join(cursor, name)
+            if os.path.exists(path):
+                os.remove(path)
 
 
 
@@ -840,31 +860,6 @@ class app(TkinterDnD.Tk):
 
         self.cursorbutton.settext("Execute")
         self.cursorbutton.setcommand(self.runcursor)
-
-
-
-    def resetcursor(self):
-
-        shutil.copy(
-            os.path.join(
-                cursor,
-                "defaultcursor.png"
-            ),
-            os.path.join(
-                cursor,
-                "cursor.png"
-            )
-        )
-
-        cur = os.path.join(
-            cursor,
-            "cursor.cur"
-        )
-
-        if os.path.exists(cur):
-            os.remove(cur)
-
-
 
     def run(self, file):
 
