@@ -4,6 +4,7 @@ from tkinterdnd2 import TkinterDnD, DND_FILES
 import shutil
 import subprocess
 import os
+import sys
 import time
 import ctypes
 import re
@@ -836,7 +837,7 @@ class app(TkinterDnD.Tk):
 
 
         self.cursorprocess = subprocess.Popen(
-            ["python", file],
+            [sys.executable, file],
             cwd=os.path.dirname(file),
             creationflags=flags,
             stdout=subprocess.PIPE,
@@ -861,6 +862,11 @@ class app(TkinterDnD.Tk):
         self.cursorbutton.settext("Execute")
         self.cursorbutton.setcommand(self.runcursor)
 
+
+
+
+
+
     def run(self, file):
 
         flags = 0
@@ -870,7 +876,7 @@ class app(TkinterDnD.Tk):
 
 
         p = subprocess.Popen(
-            ["python", file],
+            [sys.executable, file],
             cwd=os.path.dirname(file),
             creationflags=flags,
             stdout=subprocess.PIPE,
